@@ -1,0 +1,99 @@
+\
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HyperComponents Inspector</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:12px;}
+    .row{display:flex;gap:8px;align-items:center;margin:6px 0;}
+    .label{min-width:120px;color:#333;}
+    input{flex:1;padding:6px;}
+    .btn{padding:8px 10px;border:1px solid #999;background:#f4f4f4;cursor:pointer;}
+    .muted{color:#666;font-size:12px;}
+    .err{color:#b00020;}
+    .group{margin-top:12px;padding-top:10px;border-top:1px solid #ddd;}
+    .gtitle{font-weight:bold;margin:8px 0;}
+  </style>
+</head>
+<body>
+  <div class="row">
+    <button class="btn" onclick="sketchup.hc_update_selected()">Update</button>
+    <button class="btn" onclick="sketchup.hc_get_state()">Refresh</button>
+    <div id="sel" class="muted" style="margin-left:auto"></div>
+  </div>
+  <div id="meta" class="muted"></div>
+  <div id="error" class="err"></div>
+  <div id="params"></div>
+
+<script>
+  const state = { selected:null, params:{}, meta:{} };
+
+  function escapeHtml(s){
+    return (''+s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  function render(){
+    const sel = document.getElementById('sel');
+    const params = document.getElementById('params');
+    const meta = document.getElementById('meta');
+    const error = document.getElementById('error');
+
+    if(!state.selected){
+      sel.textContent = 'No selection';
+      params.innerHTML = '';
+      meta.textContent = '';
+      error.textContent = '';
+      return;
+    }
+    sel.textContent = `${state.selected.type}: ${state.selected.name || '(unnamed)'}`;
+
+    error.textContent = (state.meta && state.meta.last_error) ? state.meta.last_error : '';
+    meta.textContent = (state.meta && state.meta.last_update_ms) ? `Last update: ${state.meta.last_update_ms.toFixed(2)} ms` : '';
+
+    const groups = {};
+    for(const [id, p] of Object.entries(state.params || {})){
+      const g = p.group || 'Params';
+      groups[g] = groups[g] || [];
+      groups[g].push([id,p]);
+    }
+
+    let html = '';
+    for(const [g, items] of Object.entries(groups)){
+      html += `<div class="group"><div class="gtitle">${escapeHtml(g)}</div>`;
+      items.sort((a,b)=> (a[1].order||0) - (b[1].order||0));
+      for(const [id, p] of items){
+        const unit = p.unit ? ` ${escapeHtml(p.unit)}` : '';
+        const v = (p.value === null || p.value === undefined) ? '' : p.value;
+        html += `<div class="row">
+          <div class="label">${escapeHtml(id)}${unit}</div>
+          <input value="${escapeHtml(v)}" onblur="setParam('${escapeHtml(id)}', this.value)" />
+        </div>`;
+      }
+      html += '</div>';
+    }
+    params.innerHTML = html;
+  }
+
+  function setParam(id, value){
+    sketchup.hc_set_param(JSON.stringify({id, value}));
+  }
+
+  window.hcSetState = function(s){
+    try{
+      state.selected = s.selected;
+      state.params = s.params || {};
+      state.meta = s.meta || {};
+      render();
+    }catch(e){
+      console.log(e);
+    }
+  }
+
+  // initial load
+  if(window.sketchup && sketchup.hc_get_state){
+    sketchup.hc_get_state();
+  }
+</script>
+</body>
+</html>
