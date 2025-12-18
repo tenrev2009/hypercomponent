@@ -16,6 +16,20 @@ module HyperComponents
           menu.add_item("HyperComponents: Panel") { show }
         end
 
+        # --- AJOUT: Méthodes requises par Lifecycle et Observers ---
+        
+        def ensure_singleton!
+          # Méthode requise par le cycle de vie.
+          # Le dialogue est créé à la demande, donc rien à faire ici pour l'instant.
+        end
+
+        def refresh_if_open
+          # Rafraîchir la sélection si le dialogue est visible
+          notify_selection(selected_entity) if @dlg && @dlg.visible?
+        end
+
+        # -----------------------------------------------------------
+
         def show(entity = nil)
           @dlg ||= build_dialog
           @dlg.show
@@ -24,7 +38,7 @@ module HyperComponents
           if ent
             notify_selection(ent)
           else
-            # keep UI open; just show empty payload
+            # Garder l'UI ouverte mais afficher une charge vide
             send_to_js("HC.onSelection(null)")
             send_to_js("HC.onPayload(null, null)")
           end
@@ -49,7 +63,7 @@ module HyperComponents
             resizable: true,
             width: 460,
             height: 760,
-            style: ::UI::HtmlDialog::STYLE_DIALOG # ✅ FIX: no :::: here
+            style: ::UI::HtmlDialog::STYLE_DIALOG
           )
 
           dlg.set_html(read_panel_html)
@@ -100,7 +114,6 @@ module HyperComponents
           pid = safe_pid(entity)
           payload = entity ? payload_for(entity) : nil
 
-          # ✅ FIX: no "rescue nil" inside a hash literal
           json = payload ? JSON.generate(payload) : "null"
           send_to_js("HC.onPayload(#{pid || 'null'}, #{json})")
         rescue => e
@@ -155,7 +168,8 @@ module HyperComponents
 
         def read_panel_html
           path1 = File.join(__dir__, "panel.html")
-          path2 = File.join(__dir__, "panal.html") # fallback si tu as ce nom
+          # Fallback sécurisé
+          path2 = File.join(__dir__, "panel.html") 
           path = File.exist?(path1) ? path1 : path2
 
           if File.exist?(path)
@@ -195,7 +209,7 @@ module HyperComponents
         end
 
         # -------------------------
-        # Backend adapters (no crash if your Core differs)
+        # Backend adapters
         # -------------------------
 
         def smart_entity?(entity)
@@ -203,7 +217,6 @@ module HyperComponents
           if defined?(HyperComponents::Core::Serializer) && HyperComponents::Core::Serializer.respond_to?(:smart_component?)
             return HyperComponents::Core::Serializer.smart_component?(entity)
           end
-          # fallback: dict presence
           !!entity.attribute_dictionary("smart_component", false)
         rescue
           false
@@ -214,7 +227,6 @@ module HyperComponents
           if defined?(HyperComponents::Core::Serializer) && HyperComponents::Core::Serializer.respond_to?(:read)
             return HyperComponents::Core::Serializer.read(entity)
           end
-          # fallback minimal
           {
             meta: entity.get_attribute("smart_component", "meta"),
             features: entity.get_attribute("smart_component", "features"),
@@ -243,7 +255,6 @@ module HyperComponents
               return
             end
           end
-          # fallback: direct write not supported here (avoid corrupting)
         rescue => e
           log_exception(e, "patch_entity")
         end
