@@ -1,4 +1,3 @@
-\
 # frozen_string_literal: true
 
 require_relative '../data/storage'
@@ -17,13 +16,21 @@ module HyperComponents
           if obj == ctx[:self]
             value_store.get(param)
           else
-            # For Phase 1: parent/child resolution only supports reading stored overrides/defaults if they are HC
+            # ADAPTATION STORAGE v2
             begin
-              payload = Data::Storage.instance_payload(obj)
-              def_payload = Data::Storage.definition_payload(obj.definition) rescue {}
-              vs = Params::ValueStore.new(def_payload, payload)
+              # On récupère les données via la nouvelle méthode read()
+              # Note: read() renvoie déjà les valeurs par défaut fusionnées (meta, features, etc.)
+              instance_data = Data::Storage.read(obj)
+              
+              # Dans le nouveau modèle, il n'y a pas forcément de payload séparé pour la définition
+              # car read() fait le travail de fusion. On passe un hash vide pour def_payload.
+              def_payload = {} 
+              
+              # On initialise un ValueStore temporaire pour l'autre objet
+              vs = Params::ValueStore.new(def_payload, instance_data)
               vs.get(param)
-            rescue
+            rescue => e
+              Diagnostics::Logger.debug("[HC][Automation] Resolution error for #{param}: #{e.message}")
               nil
             end
           end
