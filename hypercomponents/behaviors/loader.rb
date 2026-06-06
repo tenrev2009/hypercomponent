@@ -11,7 +11,7 @@ require_relative 'builtins/labels'
 module HyperComponents
   module Behaviors
     module Loader
-      def self.load_builtins
+      def self.load_builtins!
         # Requiring builtins registers them.
       end
     end
